@@ -80,24 +80,74 @@ public class MainActivity extends AppCompatActivity {
         Bitmap res = Bitmap.createBitmap(w, h, Bitmap.Config.ARGB_8888);
 
         int n = sb_threads.getProgress();
-
-        Thread[] t = new Thread[n];
-        Worker[] worker = new Worker[n];
+        int k = sb_core.getProgress();
         int s = h / n;
 
+        Thread[] t = new Thread[n];
         long startTime = System.currentTimeMillis();
-        for (int i = 0; i < t.length; i++) {
-            worker[i] = new Worker();
-            worker[i].bmp = bmp;
-            worker[i].res = res;
-            worker[i].w = w;
-            worker[i].h = h;
-            worker[i].k = sb_core.getProgress();
-            worker[i].y0 = s * i;
-            worker[i].y1 = worker[i].y0 + s;
+        if (sw_gaussian.isActivated())
+        {
 
-            t[i] = new Thread(worker[i]);
-            t[i].start();
+            double sigma = k/2;
+
+            int kernelWidth = (2 * k) +1;
+            Double[][] kernel = new Double[kernelWidth][kernelWidth];
+            double sum = 0;
+            for (int x=-k; x < k; x++) {
+                for (int y = -k; y < k; y++) {
+
+                    double exponentNumerator = (double)(-(x * x + y * y));
+                    double exponentDenominator = (2 * sigma * sigma);
+
+                    double eExpression = Math.pow(Math.E, exponentNumerator / exponentDenominator);
+                    double kernelValue = (eExpression / (2 * Math.PI * sigma * sigma));
+
+                    // We add radius to the indices to prevent out of bound issues because x and y can be negative
+                    kernel[x + k][y + k] = kernelValue;
+                    sum += kernelValue;
+                }
+            }
+
+            // Normalize the kernel
+            // This ensures that all of the values in the kernel together add up to 1
+            for (int x=0; x < kernelWidth; x++){
+                for (int y=0; y < kernelWidth; y++){
+                    kernel[x][y] /= sum;
+                }
+            }
+
+            GaussianWorker[] worker = new GaussianWorker[n];
+            for (int i = 0; i < t.length; i++) {
+                worker[i] = new GaussianWorker();
+                worker[i].bmp = bmp;
+                worker[i].res = res;
+                worker[i].kernel = kernel;
+                worker[i].w = w;
+                worker[i].h = h;
+                worker[i].k = k;
+                worker[i].y0 = s * i;
+                worker[i].y1 = worker[i].y0 + s;
+
+                t[i] = new Thread(worker[i]);
+                t[i].start();
+            }
+        }
+        else {
+            Worker[] worker = new Worker[n];
+            for (int i = 0; i < t.length; i++) {
+                worker[i] = new Worker();
+                worker[i].bmp = bmp;
+                worker[i].res = res;
+                worker[i].w = w;
+                worker[i].h = h;
+                worker[i].k = sb_core.getProgress();
+                worker[i].y0 = s * i;
+                worker[i].y1 = worker[i].y0 + s;
+
+                t[i] = new Thread(worker[i]);
+                t[i].start();
+            }
+
         }
 
         for (int i = 0; i < n; i++) {
@@ -153,80 +203,44 @@ public class MainActivity extends AppCompatActivity {
             }
         }
     }
-/*
+
     class GaussianWorker implements Runnable {
 
         public int y0, y1;
         public int w, h;
         public int k;
+        public Double[][] kernel;
         public Bitmap bmp, res;
 
         @Override
         public void run() {
 
-            Log.e("TEST","yo="+y0 +"\ny1=" + y1);
-
-            double sigma = 5.5 ;
-            double sumMatrix=0;
-
-            double[][] coeffMatrix = new double[k][k];
-            double e;
-            double g1;
-            double temp_x, temp_y;
-            int median = k/2;
-            for (int i = 0; i < k; i++)
-            {
-                for (int j = 0; j < k; j++)
-                {
-                        g1 = 1.0D / (2 * Math.PI * (sigma*sigma));
-                        temp_x = Math.pow((i-median), 2);
-                        temp_y = Math.pow((j-median), 2);
-                        e = Math.pow(Math.E, ((temp_x + temp_y) / (2 * (sigma*sigma))) / -1.0D);
-                        coeffMatrix[i][j] = g1 * e;
-                        sumMatrix += coeffMatrix[i][j];
-                }
-            }
-
             for (int y = y0; y < y1; y++)
             {
                 for (int x = 0; x < w; x++)
                 {
-
                     int sumRed = 0;
                     int sumGreen = 0;
                     int sumBlue = 0;
 
-                    for (int v = 0; v < k; v++)
-                    {
-                        for (int u = 0; u < k; u++)
-                        {
 
-                            int px = u + x - k / 2;
-                            int py = v + y - k / 2;
+                    for (int kernelX =-k; kernelX < k; kernelX ++){
+                        for (int kernelY = -k; kernelY < k;kernelY ++){
 
-                            if (px < 0) px = 0;
-                            if (py < 0) py = 0;
-                            if (px >= w) px = w - 1;
-                            if (py >= h) py = h - 1;
+                            double kernelValue = kernel[kernelX + k][kernelY + k];
 
-                            int c = bmp.getPixel(px, py);
-
-                            sumRed += (double)Color.red(c) * coeffMatrix[u][v];
-                            sumGreen += (double)Color.green(c) * coeffMatrix[u][v];
-                            sumBlue += (double)Color.blue(c) * coeffMatrix[u][v];
-
+                            int c = bmp.getPixel(x-kernelX,y-kernelY);
+                            sumRed += Color.red(c) * kernelValue;
+                            sumGreen += Color.green(c) * kernelValue;
+                            sumBlue += Color.blue(c) * kernelValue;
                         }
                     }
-                    sumRed/=sumMatrix;
-                    sumGreen/=sumMatrix;
-                    sumBlue/=sumMatrix;
-
                     res.setPixel(x, y, Color.rgb(sumRed, sumGreen, sumBlue));
-                    //if (Thread.currentThread().isInterrupted()) return;
+
                 }
             }
         }
     }
 
- */
+
 }
