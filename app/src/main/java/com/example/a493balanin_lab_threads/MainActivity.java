@@ -3,6 +3,7 @@ package com.example.a493balanin_lab_threads;
 import androidx.annotation.RequiresApi;
 import androidx.appcompat.app.AppCompatActivity;
 
+
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.graphics.Color;
@@ -20,13 +21,12 @@ import java.util.Timer;
 
 public class MainActivity extends AppCompatActivity {
 
-    public double sko = 5;
-    ImageView iv;
+    ImageView iv; //439 balanin lab2 threads
     SeekBar sb_core,sb_threads;
     TextView tv_core_value, tv_thread_value, tv_process;
     Switch sw_default, sw_gaussian;
 
-    @RequiresApi(api = Build.VERSION_CODES.O)
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
